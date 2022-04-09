@@ -11,15 +11,18 @@ find_package(CMSIS COMPONENTS STM32${STM32_FAMILY} REQUIRED)
 find_package(HAL COMPONENTS STM32${STM32_FAMILY} REQUIRED)
 
 add_subdirectory(lcd_libs)
+add_subdirectory(lvgl)
 
 set(HEADERS 
     Inc/main.h
     Inc/stm32f3xx_hal_conf.h 
     Inc/stm32f3xx_it.h
+    Inc/lv_conf.h
 
     Inc/lcd.h
     Inc/touch.h
     Inc/keyboard.h
+    Inc/player.h
 )
 
 set(SOURCES 
@@ -30,12 +33,13 @@ set(SOURCES
     Src/lcd.c
     Src/touch.c
     Src/keyboard.c
+    Src/player.c
 )
 
 add_library(startup ${STM32_STARTUP_FILE})
 add_executable(${CMAKE_PROJECT_NAME} ${HEADERS} ${SOURCES})
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE Inc)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_HAL_DRIVER)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_HAL_DRIVER LV_CONF_INCLUDE_SIMPLE)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
     HAL::STM32::${STM32_FAMILY}::RCC
@@ -52,6 +56,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     STM32::NoSys
     startup
     lcd_ll
+    lvgl
 )
 
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -specs=nano.specs -T${STM32_LINKER_SCRIPT} )

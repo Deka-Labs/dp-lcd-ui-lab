@@ -20,6 +20,8 @@ int __lcd_write_register(void *user_data, uint16_t address, uint16_t value) {
   OPEN32F3_LCD_SET_WR();
 
   OPEN32F3_LCD_SET_CS();
+
+  return 0;
 }
 
 int __lcd_write_words(void *user_data, uint16_t address, uint16_t *data,
@@ -46,6 +48,8 @@ int __lcd_write_words(void *user_data, uint16_t address, uint16_t *data,
   }
 
   OPEN32F3_LCD_SET_CS();
+
+  return 0;
 }
 
 int __lcd_read_register(void *user_data, uint16_t address, uint16_t *value) {
@@ -68,6 +72,8 @@ int __lcd_read_register(void *user_data, uint16_t address, uint16_t *value) {
   OPEN32F3_LCD_DATA_SET_OUTPUT_MODE();
 
   OPEN32F3_LCD_SET_CS();
+
+  return 0;
 }
 
 lcd_ili93xx_driver_t make_lcd_driver(int *err) {
