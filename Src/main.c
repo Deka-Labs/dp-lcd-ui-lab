@@ -73,24 +73,24 @@ void KeyboardHandleEvent(KeyEvent e) {
   }
 
   switch (e.key) {
-    case 0:
-      background_color = LCD_ILI93XX_COLOR_FUCHSIA;
-      break;
+  case 0:
+    background_color = LCD_ILI93XX_COLOR_FUCHSIA;
+    break;
 
-    case 1:
-      background_color = LCD_ILI93XX_COLOR_SILVER;
-      break;
+  case 1:
+    background_color = LCD_ILI93XX_COLOR_SILVER;
+    break;
 
-    case 2:
-      background_color = LCD_ILI93XX_COLOR_MAROON;
-      break;
+  case 2:
+    background_color = LCD_ILI93XX_COLOR_MAROON;
+    break;
 
-    case 3:
-      background_color = LCD_ILI93XX_COLOR_NAVY;
-      break;
+  case 3:
+    background_color = LCD_ILI93XX_COLOR_NAVY;
+    break;
 
-    default:
-      break;
+  default:
+    break;
   }
 }
 /* USER CODE END 0 */
@@ -273,10 +273,11 @@ void SystemClock_Config(void) {
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
    */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
@@ -286,7 +287,7 @@ void SystemClock_Config(void) {
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -297,6 +298,7 @@ void SystemClock_Config(void) {
  * @retval None
  */
 static void MX_SPI1_Init(void) {
+
   /* USER CODE BEGIN SPI1_Init 0 */
 
   /* USER CODE END SPI1_Init 0 */
@@ -312,7 +314,7 @@ static void MX_SPI1_Init(void) {
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
