@@ -1,0 +1,29 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Cortex Debug",
+            "cwd": "${workspaceRoot}",
+            "executable": "build/lcd_lab.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32f3x.cfg"
+            ],
+            "openOCDLaunchCommands": [
+                "init",
+                "reset halt",
+                "flash write_image erase build/lcd_lab.bin 0x08000000",
+                "verify_image build/lcd_lab.bin",
+                "reset run"
+            ],
+            "gdbPath": "gdb-multiarch",
+            "preLaunchTask": "build"
+        }
+    ]
+}
