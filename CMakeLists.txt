@@ -32,24 +32,34 @@ set(HEADERS
     Inc/lcd.h
     Inc/touch.h
     Inc/keyboard.h
-    Inc/player.h
+    #Inc/player.h
+
+    melody_files/melody_1.h
+    melody_files/melody_2.h
+    melody_files/melody_3.h
+    melody_files/melody_4.h
 )
 
 set(SOURCES 
     Src/main.c 
     Src/stm32f3xx_hal_msp.c
     Src/stm32f3xx_it.c
-    Src/memory.c
+    # Src/memory.c
 
     Src/lcd.c
     Src/touch.c
     Src/keyboard.c
-    Src/player.c
+    # Src/player.c
+
+    melody_files/melody_1.c
+    melody_files/melody_2.c
+    melody_files/melody_3.c
+    melody_files/melody_4.c
 )
 
 add_library(startup ${STM32_STARTUP_FILE})
 add_executable(${CMAKE_PROJECT_NAME} ${HEADERS} ${SOURCES})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE Inc)
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE Inc melody_files)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_HAL_DRIVER)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
@@ -70,7 +80,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE
     lvgl
 )
 
-target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -specs=nano.specs -T${STM32_LINKER_SCRIPT} )
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -g -specs=nano.specs -T${STM32_LINKER_SCRIPT} -Wl,--print-memory-usage)
 
 
 stm32_print_size_of_target(${CMAKE_PROJECT_NAME})

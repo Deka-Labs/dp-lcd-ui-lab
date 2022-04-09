@@ -21,18 +21,38 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdlib.h>
 #include <string.h>
 
 #include "keyboard.h"
 #include "lab_5_icons.h"
 #include "lcd.h"
 #include "lvgl.h"
+#include "melody_1.h"
+#include "melody_2.h"
+#include "melody_3.h"
+#include "melody_4.h"
 #include "touch.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef struct {
+  lcd_ili93xx_driver_t *lcd_driver;
+  lcd_xpt2046_driver_t *touch_driver;
 
+  size_t buf_size;
+  lv_color_t *buf;
+  lv_disp_draw_buf_t lv_draw_buf;
+  lv_disp_drv_t lv_driver;
+
+  lv_disp_t *disp;
+
+  lv_indev_drv_t indev_drv;
+  lv_indev_t *indev;
+  int last_x_position, last_y_position;
+
+} LVGLDriver;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -53,25 +73,136 @@
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
 
-TIM_HandleTypeDef htim3;
-
 /* USER CODE BEGIN PV */
-int background_color = LCD_ILI93XX_COLOR_FUCHSIA;
-int cursor_color = LCD_ILI93XX_COLOR_GRAY;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void init_lvgl_lib() { lv_init(); }
+
+static void lvgl_display_flush_cb(lv_disp_drv_t *disp_drv,
+                                  const lv_area_t *area, lv_color_t *color_p) {
+
+  LVGLDriver *drv = disp_drv->user_data;
+  lcd_ili93xx_fill_area(drv->lcd_driver, area->x1, area->y1, area->x2, area->y2,
+                        (uint16_t *)color_p);
+  lv_disp_flush_ready(disp_drv);
+}
+
+static void lvgl_display_touch_sensor_read_cb(lv_indev_drv_t *disp_drv,
+                                              lv_indev_data_t *data) {
+  LVGLDriver *drv = disp_drv->user_data;
+
+  int touch_x;
+  int touch_y;
+  int touched;
+
+  // Grab touch data
+  int x[AVG_BUFFER_SIZE] = {0};
+  int y[AVG_BUFFER_SIZE] = {0};
+  int z1[AVG_BUFFER_SIZE] = {0};
+  int z2[AVG_BUFFER_SIZE] = {0};
+
+  for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
+    int err = 0;
+    err |= lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_X, &x[i]);
+    err |= lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_Y, &y[i]);
+    err |=
+        lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_Z1, &z1[i]);
+    err |=
+        lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_Z2, &z2[i]);
+
+    if (err) {
+      __NOP();
+    }
+  }
+  // Average data
+  int avg_x = 0, avg_y = 0, avg_z1 = 0, avg_z2 = 0;
+  for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
+    avg_x += x[i];
+    avg_y += y[i];
+    avg_z1 += z1[i];
+    avg_z2 += z2[i];
+  }
+  avg_x /= AVG_BUFFER_SIZE;
+  avg_y /= AVG_BUFFER_SIZE;
+  avg_z1 /= AVG_BUFFER_SIZE;
+  avg_z2 /= AVG_BUFFER_SIZE;
+
+  // Touch detection
+  if (ABS(avg_z2 - avg_z1) < TOUCH_TRIGGER_VALUE) {
+    // Touched
+    touched = 1;
+    touch_x = avg_x * 275 / 4096 - 25;
+    touch_y = avg_y * 375 / 4096 - 25;
+  } else {
+    touched = 0;
+  }
+
+  if (touched) {
+    drv->last_x_position = touch_x;
+    drv->last_y_position = touch_y;
+  }
+  data->point.x = drv->last_x_position;
+  data->point.y = drv->last_y_position;
+  if (touched) {
+    data->state = LV_INDEV_STATE_PR;
+  } else {
+    data->state = LV_INDEV_STATE_REL;
+  }
+}
+
+int init_lvgl_driver(LVGLDriver *driver, lcd_ili93xx_driver_t *lcd_drv,
+                     lcd_xpt2046_driver_t *touch_drv) {
+  lv_init();
+
+  driver->lcd_driver = lcd_drv;
+  driver->touch_driver = touch_drv;
+
+  int16_t width = 0;
+  int16_t height = 0;
+  lcd_ili93xx_get_width(lcd_drv, &width);
+  lcd_ili93xx_get_height(lcd_drv, &height);
+
+  driver->buf_size = 1 * width;
+  driver->buf = malloc(sizeof(lv_color_t) * driver->buf_size);
+  lv_disp_draw_buf_init(&driver->lv_draw_buf, driver->buf, NULL,
+                        driver->buf_size);
+
+  lv_disp_drv_init(&driver->lv_driver);
+
+  driver->lv_driver.hor_res = width;
+  driver->lv_driver.ver_res = height;
+  driver->lv_driver.draw_buf = &driver->lv_draw_buf;
+  driver->lv_driver.user_data = driver;
+  driver->lv_driver.flush_cb = lvgl_display_flush_cb;
+  driver->disp = lv_disp_drv_register(&driver->lv_driver);
+
+  if (driver->disp == NULL) {
+    return -1;
+  }
+
+  lv_indev_drv_init(&driver->indev_drv);
+  driver->indev_drv.type = LV_INDEV_TYPE_POINTER;
+  driver->last_x_position = 0;
+  driver->last_y_position = 0;
+  driver->indev_drv.user_data = driver;
+  driver->indev_drv.disp = driver->disp;
+  driver->indev_drv.read_cb = lvgl_display_touch_sensor_read_cb;
+  driver->indev = lv_indev_drv_register(&driver->indev_drv);
+  if (driver->indev == NULL) {
+    return -1;
+  }
+
+  return 0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -103,7 +234,6 @@ int main(void) {
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
-  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   int err = 0;
@@ -122,116 +252,26 @@ int main(void) {
     }
   }
 
+  // LVGLDriver lvgl_drv;
+  // if (init_lvgl_driver(&lvgl_drv, &lcd_drv, &touch_drv) != 0) {
+  //   while (1) {
+  //     __NOP();
+  //   }
+  // }
+
   // Keyboard_Init();
   // Keyboard_SetCallback(KeyboardHandleEvent);
-
-  int16_t width = 0;
-  int16_t height = 0;
-  lcd_ili93xx_get_width(&lcd_drv, &width);
-  lcd_ili93xx_get_height(&lcd_drv, &height);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int touched = 0;
-  int touch_x, touch_y;
-
   while (1) {
-    // Grab touch data
-    int x[AVG_BUFFER_SIZE] = {0};
-    int y[AVG_BUFFER_SIZE] = {0};
-    int z1[AVG_BUFFER_SIZE] = {0};
-    int z2[AVG_BUFFER_SIZE] = {0};
-
-    for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
-      int err = 0;
-      err |= lcd_xpt2046_measure(&touch_drv, XPT2046_CMD_MEASURE_X, &x[i]);
-      err |= lcd_xpt2046_measure(&touch_drv, XPT2046_CMD_MEASURE_Y, &y[i]);
-      err |= lcd_xpt2046_measure(&touch_drv, XPT2046_CMD_MEASURE_Z1, &z1[i]);
-      err |= lcd_xpt2046_measure(&touch_drv, XPT2046_CMD_MEASURE_Z2, &z2[i]);
-
-      if (err) {
-        __NOP();
-      }
-    }
-    // Average data
-    int avg_x = 0, avg_y = 0, avg_z1 = 0, avg_z2 = 0;
-    for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
-      avg_x += x[i];
-      avg_y += y[i];
-      avg_z1 += z1[i];
-      avg_z2 += z2[i];
-    }
-    avg_x /= AVG_BUFFER_SIZE;
-    avg_y /= AVG_BUFFER_SIZE;
-    avg_z1 /= AVG_BUFFER_SIZE;
-    avg_z2 /= AVG_BUFFER_SIZE;
-
-    // Touch detection
-    if (ABS(avg_z2 - avg_z1) < TOUCH_TRIGGER_VALUE) {
-      // Touched
-      touched = 1;
-      touch_x = avg_x * 275 / 4096 - 25;
-      touch_y = avg_y * 375 / 4096 - 25;
-    } else {
-      touched = 0;
-    }
-
-    // Draw
-    int cached_back_color = background_color;
-    int cached_front_color = cursor_color;
-
-    for (int x = 0; x < 240; x++) {
-      uint16_t color_line[320];
-      for (int i = 0; i < 320; i++) {
-        color_line[i] = cached_back_color;
-      }
-
-      if (touch_x <= x && x < touch_x + 16) {
-        int x_in_img = x - touch_x;
-        for (int y_in_img = 0; y_in_img < 16; y_in_img++) {
-          int mask = CURSOR_DEFAULT[x_in_img][y_in_img];
-          if (touched) {
-            mask = CURSOR_ON_TOUCH[x_in_img][y_in_img];
-          }
-
-          if (mask) {
-            color_line[touch_y + y_in_img] = cached_front_color;
-          }
-        }
-      }
-
-      lcd_ili93xx_fill_area(&lcd_drv, x, 0, x, 320, color_line);
-    }
-
-    // lcd_ili93xx_fill_area_color(&lcd_drv, 0, 0, width, height,
-    //                             cached_back_color);
-
-    // uint16_t color_data[16][16] = {0};
-
-    // for (int x = 0; x < 16; x++) {
-    //   for (int y = 0; y < 16; y++) {
-    //     int mask = CURSOR_DEFAULT[x][y];
-    //     if (touched) {
-    //       mask = CURSOR_ON_TOUCH[x][y];
-    //     }
-
-    //     if (mask) {
-    //       color_data[x][y] = cached_front_color;
-    //     } else {
-    //       color_data[x][y] = cached_back_color;
-    //     }
-    //   }
-    // }
-
-    // lcd_ili93xx_fill_area(&lcd_drv, touch_x, touch_y, touch_x + 16,
-    //                       touch_y + 16, (int16_t*)color_data);
-
+    lv_timer_handler();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_Delay(1);
+    HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
@@ -253,7 +293,7 @@ void SystemClock_Config(void) {
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
     Error_Handler();
   }
@@ -267,7 +307,7 @@ void SystemClock_Config(void) {
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK) {
     Error_Handler();
   }
 }
@@ -294,7 +334,7 @@ static void MX_SPI1_Init(void) {
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -310,58 +350,6 @@ static void MX_SPI1_Init(void) {
 }
 
 /**
- * @brief TIM3 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM3_Init(void) {
-
-  /* USER CODE BEGIN TIM3_Init 0 */
-
-  /* USER CODE END TIM3_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM3_Init 1 */
-
-  /* USER CODE END TIM3_Init 1 */
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 47;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 999;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK) {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK) {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK) {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK) {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 500;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM3_Init 2 */
-
-  /* USER CODE END TIM3_Init 2 */
-  HAL_TIM_MspPostInit(&htim3);
-}
-
-/**
  * @brief GPIO Initialization Function
  * @param None
  * @retval None
@@ -370,10 +358,10 @@ static void MX_GPIO_Init(void) {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 

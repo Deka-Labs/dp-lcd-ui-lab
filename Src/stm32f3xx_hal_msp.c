@@ -57,12 +57,11 @@
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
-
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /**
- * Initializes the Global MSP.
- */
-void HAL_MspInit(void) {
+  * Initializes the Global MSP.
+  */
+void HAL_MspInit(void)
+{
   /* USER CODE BEGIN MspInit 0 */
 
   /* USER CODE END MspInit 0 */
@@ -80,17 +79,19 @@ void HAL_MspInit(void) {
 }
 
 /**
- * @brief SPI MSP Initialization
- * This function configures the hardware resources used in this example
- * @param hspi: SPI handle pointer
- * @retval None
- */
-void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi) {
+* @brief SPI MSP Initialization
+* This function configures the hardware resources used in this example
+* @param hspi: SPI handle pointer
+* @retval None
+*/
+void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
+{
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if (hspi->Instance == SPI1) {
-    /* USER CODE BEGIN SPI1_MspInit 0 */
+  if(hspi->Instance==SPI1)
+  {
+  /* USER CODE BEGIN SPI1_MspInit 0 */
 
-    /* USER CODE END SPI1_MspInit 0 */
+  /* USER CODE END SPI1_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_SPI1_CLK_ENABLE();
 
@@ -100,30 +101,33 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi) {
     PA6     ------> SPI1_MISO
     PA7     ------> SPI1_MOSI
     */
-    GPIO_InitStruct.Pin = SPI1_SCK_Pin | SPI1_MISO_Pin | SPI1_MISOA7_Pin;
+    GPIO_InitStruct.Pin = SPI1_SCK_Pin|SPI1_MISO_Pin|SPI1_MISOA7_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    /* USER CODE BEGIN SPI1_MspInit 1 */
+  /* USER CODE BEGIN SPI1_MspInit 1 */
 
-    /* USER CODE END SPI1_MspInit 1 */
+  /* USER CODE END SPI1_MspInit 1 */
   }
+
 }
 
 /**
- * @brief SPI MSP De-Initialization
- * This function freeze the hardware resources used in this example
- * @param hspi: SPI handle pointer
- * @retval None
- */
-void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi) {
-  if (hspi->Instance == SPI1) {
-    /* USER CODE BEGIN SPI1_MspDeInit 0 */
+* @brief SPI MSP De-Initialization
+* This function freeze the hardware resources used in this example
+* @param hspi: SPI handle pointer
+* @retval None
+*/
+void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
+{
+  if(hspi->Instance==SPI1)
+  {
+  /* USER CODE BEGIN SPI1_MspDeInit 0 */
 
-    /* USER CODE END SPI1_MspDeInit 0 */
+  /* USER CODE END SPI1_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_SPI1_CLK_DISABLE();
 
@@ -132,73 +136,13 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi) {
     PA6     ------> SPI1_MISO
     PA7     ------> SPI1_MOSI
     */
-    HAL_GPIO_DeInit(GPIOA, SPI1_SCK_Pin | SPI1_MISO_Pin | SPI1_MISOA7_Pin);
+    HAL_GPIO_DeInit(GPIOA, SPI1_SCK_Pin|SPI1_MISO_Pin|SPI1_MISOA7_Pin);
 
-    /* USER CODE BEGIN SPI1_MspDeInit 1 */
+  /* USER CODE BEGIN SPI1_MspDeInit 1 */
 
-    /* USER CODE END SPI1_MspDeInit 1 */
+  /* USER CODE END SPI1_MspDeInit 1 */
   }
-}
 
-/**
- * @brief TIM_Base MSP Initialization
- * This function configures the hardware resources used in this example
- * @param htim_base: TIM_Base handle pointer
- * @retval None
- */
-void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim_base) {
-  if (htim_base->Instance == TIM3) {
-    /* USER CODE BEGIN TIM3_MspInit 0 */
-
-    /* USER CODE END TIM3_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_TIM3_CLK_ENABLE();
-    /* USER CODE BEGIN TIM3_MspInit 1 */
-
-    /* USER CODE END TIM3_MspInit 1 */
-  }
-}
-
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim) {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if (htim->Instance == TIM3) {
-    /* USER CODE BEGIN TIM3_MspPostInit 0 */
-
-    /* USER CODE END TIM3_MspPostInit 0 */
-
-    __HAL_RCC_GPIOE_CLK_ENABLE();
-    /**TIM3 GPIO Configuration
-    PE3     ------> TIM3_CH2
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_3;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
-    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-    /* USER CODE BEGIN TIM3_MspPostInit 1 */
-
-    /* USER CODE END TIM3_MspPostInit 1 */
-  }
-}
-/**
- * @brief TIM_Base MSP De-Initialization
- * This function freeze the hardware resources used in this example
- * @param htim_base: TIM_Base handle pointer
- * @retval None
- */
-void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef *htim_base) {
-  if (htim_base->Instance == TIM3) {
-    /* USER CODE BEGIN TIM3_MspDeInit 0 */
-
-    /* USER CODE END TIM3_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_TIM3_CLK_DISABLE();
-    /* USER CODE BEGIN TIM3_MspDeInit 1 */
-
-    /* USER CODE END TIM3_MspDeInit 1 */
-  }
 }
 
 /* USER CODE BEGIN 1 */
