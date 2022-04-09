@@ -71,32 +71,7 @@ static void MX_TIM3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void KeyboardHandleEvent(KeyEvent e) {
-  if (e.state != PRESSED) {
-    return;
-  }
-
-  switch (e.key) {
-  case 0:
-    background_color = LCD_ILI93XX_COLOR_FUCHSIA;
-    break;
-
-  case 1:
-    background_color = LCD_ILI93XX_COLOR_SILVER;
-    break;
-
-  case 2:
-    background_color = LCD_ILI93XX_COLOR_MAROON;
-    break;
-
-  case 3:
-    background_color = LCD_ILI93XX_COLOR_NAVY;
-    break;
-
-  default:
-    break;
-  }
-}
+void init_lvgl_lib() { lv_init(); }
 /* USER CODE END 0 */
 
 /**
@@ -147,8 +122,8 @@ int main(void) {
     }
   }
 
-  Keyboard_Init();
-  Keyboard_SetCallback(KeyboardHandleEvent);
+  // Keyboard_Init();
+  // Keyboard_SetCallback(KeyboardHandleEvent);
 
   int16_t width = 0;
   int16_t height = 0;

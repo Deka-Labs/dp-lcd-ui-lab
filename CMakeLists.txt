@@ -11,7 +11,17 @@ find_package(CMSIS COMPONENTS STM32${STM32_FAMILY} REQUIRED)
 find_package(HAL COMPONENTS STM32${STM32_FAMILY} REQUIRED)
 
 add_subdirectory(lcd_libs)
-add_subdirectory(lvgl)
+# add_subdirectory(lvgl)
+file(GLOB_RECURSE SOURCES lvgl/src/*.c)
+add_library(lvgl STATIC ${SOURCES})
+target_include_directories(lvgl PUBLIC lvgl)
+target_include_directories(lvgl PRIVATE Inc)
+target_compile_definitions(lvgl PUBLIC LV_CONF_INCLUDE_SIMPLE)
+target_link_libraries(lvgl PRIVATE 
+    HAL::STM32::${STM32_FAMILY}::TIM
+    CMSIS::STM32::F303xC
+)
+
 
 set(HEADERS 
     Inc/main.h
@@ -29,6 +39,7 @@ set(SOURCES
     Src/main.c 
     Src/stm32f3xx_hal_msp.c
     Src/stm32f3xx_it.c
+    Src/memory.c
 
     Src/lcd.c
     Src/touch.c
@@ -39,7 +50,7 @@ set(SOURCES
 add_library(startup ${STM32_STARTUP_FILE})
 add_executable(${CMAKE_PROJECT_NAME} ${HEADERS} ${SOURCES})
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE Inc)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_HAL_DRIVER LV_CONF_INCLUDE_SIMPLE)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_HAL_DRIVER)
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE 
     HAL::STM32::${STM32_FAMILY}::RCC
