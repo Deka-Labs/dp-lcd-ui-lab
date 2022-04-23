@@ -24,6 +24,16 @@
             ],
             "gdbPath": "gdb-multiarch",
             "preLaunchTask": "build"
+        },
+        {
+            "cwd": "${workspaceFolder}",
+            "executable": "build/lcd_lab.elf",
+            "name": "Debug with ST-Util",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "servertype": "stutil"
         }
     ]
 }
