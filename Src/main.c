@@ -24,42 +24,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "driver.h"
 #include "keyboard.h"
 #include "lab_5_icons.h"
-#include "lcd.h"
 #include "lvgl.h"
 #include "melody_1.h"
 #include "melody_2.h"
 #include "melody_3.h"
 #include "melody_4.h"
-#include "touch.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-  lcd_ili93xx_driver_t *lcd_driver;
-  lcd_xpt2046_driver_t *touch_driver;
-
-  size_t buf_size;
-  lv_color_t *buf;
-  lv_disp_draw_buf_t lv_draw_buf;
-  lv_disp_drv_t lv_driver;
-
-  lv_disp_t *disp;
-
-  lv_indev_drv_t indev_drv;
-  lv_indev_t *indev;
-  int last_x_position, last_y_position;
-
-} LVGLDriver;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define AVG_BUFFER_SIZE 3
-#define TOUCH_TRIGGER_VALUE 3800
-#define ABS(x) ((x) < 0 ? -(x) : (x))
 
 #define CURSOR_DEFAULT cursor_6_image
 #define CURSOR_ON_TOUCH cursor_5_image
@@ -87,122 +67,6 @@ static void MX_SPI1_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-static void lvgl_display_flush_cb(lv_disp_drv_t *disp_drv,
-                                  const lv_area_t *area, lv_color_t *color_p) {
-
-  LVGLDriver *drv = disp_drv->user_data;
-  lcd_ili93xx_fill_area(drv->lcd_driver, area->x1, area->y1, area->x2, area->y2,
-                        (uint16_t *)color_p);
-  lv_disp_flush_ready(disp_drv);
-}
-
-static void lvgl_display_touch_sensor_read_cb(lv_indev_drv_t *disp_drv,
-                                              lv_indev_data_t *data) {
-  LVGLDriver *drv = disp_drv->user_data;
-
-  int touch_x;
-  int touch_y;
-  int touched;
-
-  // Grab touch data
-  int x[AVG_BUFFER_SIZE] = {0};
-  int y[AVG_BUFFER_SIZE] = {0};
-  int z1[AVG_BUFFER_SIZE] = {0};
-  int z2[AVG_BUFFER_SIZE] = {0};
-
-  for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
-    int err = 0;
-    err |= lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_X, &x[i]);
-    err |= lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_Y, &y[i]);
-    err |=
-        lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_Z1, &z1[i]);
-    err |=
-        lcd_xpt2046_measure(drv->touch_driver, XPT2046_CMD_MEASURE_Z2, &z2[i]);
-
-    if (err) {
-      __NOP();
-    }
-  }
-  // Average data
-  int avg_x = 0, avg_y = 0, avg_z1 = 0, avg_z2 = 0;
-  for (int i = 0; i < AVG_BUFFER_SIZE; i++) {
-    avg_x += x[i];
-    avg_y += y[i];
-    avg_z1 += z1[i];
-    avg_z2 += z2[i];
-  }
-  avg_x /= AVG_BUFFER_SIZE;
-  avg_y /= AVG_BUFFER_SIZE;
-  avg_z1 /= AVG_BUFFER_SIZE;
-  avg_z2 /= AVG_BUFFER_SIZE;
-
-  // Touch detection
-  if (ABS(avg_z2 - avg_z1) < TOUCH_TRIGGER_VALUE) {
-    // Touched
-    touched = 1;
-    touch_x = avg_x * 275 / 4096 - 25;
-    touch_y = avg_y * 375 / 4096 - 25;
-  } else {
-    touched = 0;
-  }
-
-  if (touched) {
-    drv->last_x_position = touch_x;
-    drv->last_y_position = touch_y;
-  }
-  data->point.x = drv->last_x_position;
-  data->point.y = drv->last_y_position;
-  if (touched) {
-    data->state = LV_INDEV_STATE_PR;
-  } else {
-    data->state = LV_INDEV_STATE_REL;
-  }
-}
-
-int init_lvgl_driver(LVGLDriver *driver, lcd_ili93xx_driver_t *lcd_drv,
-                     lcd_xpt2046_driver_t *touch_drv) {
-  lv_init();
-
-  driver->lcd_driver = lcd_drv;
-  driver->touch_driver = touch_drv;
-
-  int16_t width = 0;
-  int16_t height = 0;
-  lcd_ili93xx_get_width(lcd_drv, &width);
-  lcd_ili93xx_get_height(lcd_drv, &height);
-
-  driver->buf_size = 1 * width;
-  driver->buf = malloc(sizeof(lv_color_t) * driver->buf_size);
-  lv_disp_draw_buf_init(&driver->lv_draw_buf, driver->buf, NULL,
-                        driver->buf_size);
-
-  lv_disp_drv_init(&driver->lv_driver);
-
-  driver->lv_driver.hor_res = width;
-  driver->lv_driver.ver_res = height;
-  driver->lv_driver.draw_buf = &driver->lv_draw_buf;
-  driver->lv_driver.user_data = driver;
-  driver->lv_driver.flush_cb = lvgl_display_flush_cb;
-  driver->disp = lv_disp_drv_register(&driver->lv_driver);
-
-  if (driver->disp == NULL) {
-    return -1;
-  }
-
-  lv_indev_drv_init(&driver->indev_drv);
-  driver->indev_drv.type = LV_INDEV_TYPE_POINTER;
-  driver->last_x_position = 0;
-  driver->last_y_position = 0;
-  driver->indev_drv.user_data = driver;
-  driver->indev_drv.disp = driver->disp;
-  driver->indev_drv.read_cb = lvgl_display_touch_sensor_read_cb;
-  driver->indev = lv_indev_drv_register(&driver->indev_drv);
-  if (driver->indev == NULL) {
-    return -1;
-  }
-
-  return 0;
-}
 /* USER CODE END 0 */
 
 /**
@@ -236,28 +100,10 @@ int main(void) {
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-  int err = 0;
-
-  lcd_xpt2046_driver_t touch_drv = make_touch_driver(&err);
-  if (err) {
-    while (1) {
-      __NOP();
-    }
+  LVGLDriver *drv = LVGLDriver_new();
+  while (!drv) {
+    __NOP();
   }
-
-  lcd_ili93xx_driver_t lcd_drv = make_lcd_driver(&err);
-  if (err) {
-    while (1) {
-      __NOP();
-    }
-  }
-
-  // LVGLDriver lvgl_drv;
-  // if (init_lvgl_driver(&lvgl_drv, &lcd_drv, &touch_drv) != 0) {
-  //   while (1) {
-  //     __NOP();
-  //   }
-  // }
 
   // Keyboard_Init();
   // Keyboard_SetCallback(KeyboardHandleEvent);
@@ -267,7 +113,7 @@ int main(void) {
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
-    lv_timer_handler();
+    LVGLDriver_update(drv);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

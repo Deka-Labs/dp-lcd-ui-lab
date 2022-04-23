@@ -32,6 +32,7 @@ set(HEADERS
     Inc/lcd.h
     Inc/touch.h
     Inc/keyboard.h
+    Inc/driver.h
     #Inc/player.h
 
     melody_files/melody_1.h
@@ -44,11 +45,12 @@ set(SOURCES
     Src/main.c 
     Src/stm32f3xx_hal_msp.c
     Src/stm32f3xx_it.c
-    # Src/memory.c
+    Src/memory.c
 
     Src/lcd.c
     Src/touch.c
     Src/keyboard.c
+    Src/driver.c
     # Src/player.c
 
     melody_files/melody_1.c
