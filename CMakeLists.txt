@@ -45,7 +45,9 @@ set(SOURCES
     Src/main.c 
     Src/stm32f3xx_hal_msp.c
     Src/stm32f3xx_it.c
-    Src/memory.c
+    Src/syscalls.c
+    Src/sysmem.c
+    # Src/memory.c
 
     Src/lcd.c
     Src/touch.c

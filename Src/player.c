@@ -9,7 +9,6 @@
 
 /// Externals
 extern TIM_HandleTypeDef htim3;
-extern TIM_HandleTypeDef htim4;
 
 //// UTILS /////
 uint32_t player_divide(uint32_t left, uint32_t right) {
@@ -96,6 +95,14 @@ void Player_Destroy(Player *p) {
     (p->destroy)(p);
   }
 }
+
+int Player_Ended(Player *p) {
+  if (p && p->destroy) {
+    return (p->ended)(p);
+  }
+
+  return 0;
+}
 //////////////////////
 
 //// No Player ////
@@ -104,35 +111,10 @@ Player MakeNoPlayer() {
   out.init = NULL;
   out.update = NULL;
   out.destroy = NULL;
+  out.ended = NULL;
   return out;
 }
 ///////////////////
-
-//// Note Player ////
-
-/**
- * Init Note player's stuff
- *  - Init TIM3 for using freq as specified in p.data
- */
-void NotePlayer_Init(Player *p) {
-  player_SetTimerFreq(&htim3, p->data.note);
-  __HAL_TIM_SET_COMPARE(&htim3, BUZZER_CHANNEL,
-                        __HAL_TIM_GET_AUTORELOAD(&htim3) / 2);
-
-  HAL_TIM_PWM_Start(&htim3, BUZZER_CHANNEL);
-}
-
-void NotePlayer_Destroy(Player *p) { HAL_TIM_PWM_Stop(&htim3, BUZZER_CHANNEL); }
-
-Player MakeNotePlayer(NoteType note_freq) {
-  Player out = {0};
-  out.init = NotePlayer_Init;
-  out.update = NULL;
-  out.destroy = NotePlayer_Destroy;
-  out.data.note = note_freq;
-  return out;
-}
-/////////////////////
 
 //// Music player ////
 
@@ -189,12 +171,20 @@ void MusicPlayer_Destroy(Player *p) {
   HAL_TIM_PWM_Stop(&htim3, BUZZER_CHANNEL);
 }
 
+int MusicPlayer_Ended(Player *p) {
+	if (p->data.music.notes_len == 0) {
+		return 1;
+	}
+	return 0;
+}
+
 Player MakeMusicPlayer(const NoteType *notes, const uint16_t *times,
                        uint32_t notes_len) {
   Player out = {0};
   out.init = MusicPlayer_Init;
   out.update = MusicPlayer_Update;
   out.destroy = MusicPlayer_Destroy;
+  out.ended = MusicPlayer_Ended;
   out.data.music.notes = notes;
   out.data.music.times = times;
   out.data.music.notes_len = notes_len;

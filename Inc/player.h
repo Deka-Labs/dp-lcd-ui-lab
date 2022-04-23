@@ -26,13 +26,10 @@ struct Player {
   void (*init)(Player *);
   void (*update)(Player *);
   void (*destroy)(Player *);
+  int (*ended)(Player *);
 };
 
-/// Creates player that don't play anything
 Player MakeNoPlayer();
-
-/// Creates player that plays specified not from init call to destroy
-Player MakeNotePlayer(NoteType note_freq);
 
 /// Creates Music player
 Player MakeMusicPlayer(const NoteType *notes, const uint16_t *times,
@@ -41,3 +38,4 @@ Player MakeMusicPlayer(const NoteType *notes, const uint16_t *times,
 void Player_Init(Player *p);
 void Player_Update(Player *p);
 void Player_Destroy(Player *p);
+int Player_Ended(Player* p);

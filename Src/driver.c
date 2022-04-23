@@ -33,6 +33,7 @@ static void lvgl_display_flush_cb(lv_disp_drv_t *disp_drv,
   LVGLDriver *drv = disp_drv->user_data;
   lcd_ili93xx_fill_area(&drv->lcd_driver, area->x1, area->y1, area->x2,
                         area->y2, (uint16_t *)color_p);
+
   lv_disp_flush_ready(disp_drv);
 }
 
@@ -185,4 +186,8 @@ void LVGLDriver_update(LVGLDriver *drv) {
   }
 
   lv_timer_handler();
+}
+
+lv_obj_t* LVGLDriver_GetScreen(LVGLDriver *drv) {
+return lv_disp_get_scr_act(drv->disp);
 }
